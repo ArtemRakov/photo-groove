@@ -5,6 +5,7 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick)
 
+initialModel : { photos : List { url : String }, selectedUrl : String }
 initialModel =
     { photos =
         [ { url = "1.jpeg" }
