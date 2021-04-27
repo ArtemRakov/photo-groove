@@ -2,11 +2,12 @@ module PhotoGroove exposing (main)
 
 import Browser
 import Html exposing (..)
-import Html.Attributes exposing (class, classList, id, name, src, title, type_)
-import Html.Events exposing (onClick)
+import Html.Attributes as Attr exposing (class, classList, id, name, src, title, type_)
+import Html.Events exposing (on, onClick)
 import Http
-import Json.Decode exposing (Decoder, int, list, string, succeed)
+import Json.Decode exposing (Decoder, at, int, list, string, succeed)
 import Json.Decode.Pipeline exposing (optional, required)
+import Json.Encode as Encode
 import Random
 
 urlPrefix : String
@@ -19,28 +20,36 @@ type Msg
     | ClickedSupriseMe
     | GotRandomPhoto Photo
     | GotPhotos (Result Http.Error (List Photo))
+    | SlidHue Int
+    | SlidRipple Int
+    | SlidNoise Int
 
 view : Model -> Html Msg
 view model =
     div [ class "content" ] <|
         case model.status of
             Loaded photos selectedUrl ->
-                viewLoader photos selectedUrl model.chosenSize
+                viewLoader photos selectedUrl model
             Loading ->
                 []
             Errored errorMessage ->
                 [ text ("Error: " ++ errorMessage) ]
 
-viewLoader : List Photo -> String -> ThumbnailSize -> List (Html Msg)
-viewLoader photos selectedUrl chosenSize =
+viewLoader : List Photo -> String -> Model -> List (Html Msg)
+viewLoader photos selectedUrl model =
     [ h1 [] [ text "Photo Groove" ]
     , button
         [ onClick ClickedSupriseMe ]
         [ text "Suprise Me" ]
+    , div [ class "filters" ]
+        [ viewFilter SlidHue "Hue" model.hue
+        , viewFilter SlidRipple  "Ripple" model.ripple
+        , viewFilter SlidNoise "Noise" model.noise
+        ]
     , h3 [] [ text "Thumbnail Size:" ]
     , div [ id "choose-size" ]
         (List.map viewSizeChooser [ Small, Medium, Large ])
-    , div [ id "thumbnails", class (sizeToString chosenSize) ]
+    , div [ id "thumbnails", class (sizeToString model.chosenSize) ]
         (List.map (viewThumbnail selectedUrl) photos)
     , img
         [ class "large"
@@ -66,6 +75,23 @@ viewThumbnail selectedUrl thumb =
         ]
         []
 
+viewFilter : (Int -> Msg) -> String -> Int -> Html Msg
+viewFilter toMsg name magnitude =
+    div [ class "filter-slider" ]
+        [ label [] [ text name ]
+        , rangeSlide
+            [ Attr.max "11"
+            , Attr.property "val" (Encode.int magnitude)
+            , onSlide toMsg
+            ]
+            []
+        , label [] [ text (String.fromInt magnitude) ]
+        ]
+
+rangeSlide : List (Attribute msg) -> List (Html msg) -> Html msg
+rangeSlide attributes children =
+    node "range-slider" attributes children
+
 sizeToString : ThumbnailSize -> String
 sizeToString size =
     case size of
@@ -75,6 +101,12 @@ sizeToString size =
             "med"
         Large ->
             "large"
+
+onSlide : (Int -> msg) -> Attribute msg
+onSlide toMsg =
+    at [ "detail", "userSlideTo" ] int
+        |> Json.Decode.map toMsg
+        |> on "slide"
 
 
 type alias Photo =
@@ -103,12 +135,18 @@ type Status
 type alias Model =
     { status : Status
     , chosenSize : ThumbnailSize
+    , hue : Int
+    , ripple : Int
+    , noise : Int
     }
 
 initialModel : Model
 initialModel =
     { status = Loading
     , chosenSize = Medium
+    , hue = 5
+    , ripple = 5
+    , noise = 5
     }
 
 
@@ -141,6 +179,12 @@ update msg model =
                     ({ model | status = Errored "0 photos found" }, Cmd.none)
         GotPhotos (Err _) ->
             ({ model | status = Errored "Server error!" }, Cmd.none)
+        SlidHue hue ->
+            ({ model | hue = hue }, Cmd.none)
+        SlidRipple ripple ->
+            ({ model | ripple = ripple }, Cmd.none)
+        SlidNoise noise ->
+            ({ model | noise = noise }, Cmd.none)
 
 selectUrl : String -> Status -> Status
 selectUrl url status =
