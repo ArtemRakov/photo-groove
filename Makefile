@@ -4,3 +4,7 @@ compile:
 start:
 	elm reactor
 
+test:
+	elm-test
+
+.PHONY: test

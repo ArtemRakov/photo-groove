@@ -1,4 +1,5 @@
-port module PhotoGroove exposing (main)
+port module PhotoGroove exposing
+     (Model, Msg(..), Status(..), Photo, initialModel, main, photoDecoder, update, urlPrefix, view)
 
 import Browser
 import Html exposing (..)
